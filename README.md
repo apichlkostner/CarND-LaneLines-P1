@@ -1,56 +1,103 @@
 # **Finding Lane Lines on the Road** 
-[![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 
-<img src="examples/laneLines_thirdPass.jpg" width="480" alt="Combined Image" />
+## Purpose of this document
 
-Overview
+This document is part of a course assingment in which lane detection for autonomous vehicles should be implemented using classical approaches of computer vision.
+
 ---
 
-When we drive, we use our eyes to decide where to go.  The lines on the road that show us where the lanes are act as our constant reference for where to steer the vehicle.  Naturally, one of the first things we would like to do in developing a self-driving car is to automatically detect lane lines using an algorithm.
+Base for the lane detection are images taken from a camera on the car roof.
 
-In this project you will detect lane lines in images using Python and OpenCV.  OpenCV means "Open-Source Computer Vision", which is a package that has many useful tools for analyzing images.  
+Example picture:
+![Example image][image2]
 
-To complete the project, two files will be submitted: a file containing project code and a file containing a brief write up explaining your solution. We have included template files to be used both for the [code](https://github.com/udacity/CarND-LaneLines-P1/blob/master/P1.ipynb) and the [writeup](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md).The code file is called P1.ipynb and the writeup template is writeup_template.md 
+[//]: # (Image References)
 
-To meet specifications in the project, take a look at the requirements in the [project rubric](https://review.udacity.com/#!/rubrics/322/view)
-
-
-Creating a Great Writeup
----
-For this project, a great writeup should provide a detailed response to the "Reflection" section of the [project rubric](https://review.udacity.com/#!/rubrics/322/view). There are three parts to the reflection:
-
-1. Describe the pipeline
-
-2. Identify any shortcomings
-
-3. Suggest possible improvements
-
-We encourage using images in your writeup to demonstrate how your pipeline works.  
-
-All that said, please be concise!  We're not looking for you to write a book here: just a brief description.
-
-You're not required to use markdown for your writeup.  If you use another method please just submit a pdf of your writeup. Here is a link to a [writeup template file](https://github.com/udacity/CarND-LaneLines-P1/blob/master/writeup_template.md). 
+[image1]: ./examples/grayscale.jpg "Grayscale"
+[image2]: ./test_images/solidWhiteCurve.jpg "Solid white curve"
+[image2_processed]: ./test_images_output/solidWhiteCurve.jpg "Solid white curve"
+[image_detpipeline]: ./docu_images/detection_pipeline.png "Detection pipeline"
 
 
-The Project
----
+## The lane detection pipeline
 
-## If you have already installed the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) you should be good to go!   If not, you should install the starter kit to get started on this project. ##
+The lane detection pipeline has the following steps:
 
-**Step 1:** Set up the [CarND Term1 Starter Kit](https://classroom.udacity.com/nanodegrees/nd013/parts/fbf77062-5703-404e-b60c-95b78b2f3f9e/modules/83ec35ee-1e02-48a5-bdb7-d244bd47c2dc/lessons/8c82408b-a217-4d09-b81d-1bda4c6380ef/concepts/4f1870e0-3849-43e4-b670-12e6f2d4b7a7) if you haven't already.
+### 1) Segmentation using color thresholds
+Lanes on the street can have a white or a yellow color. To reduce errors in edge detection the images are first segmented using these colors.
 
-**Step 2:** Open the code in a Jupyter Notebook
+The white parts are detected using thr RGB color space in which all three dimensions have to be higher than 200.
+To detect the yellow parts the image is converted to HSV color space and segmented using the thresholds [20, 60, 60] and [35, 200, 200].
 
-You will complete the project code in a Jupyter notebook.  If you are unfamiliar with Jupyter Notebooks, check out <A HREF="https://www.packtpub.com/books/content/basics-jupyter-notebook-and-python" target="_blank">Cyrille Rossant's Basics of Jupyter Notebook and Python</A> to get started.
+The two masks are combined with an or operation.
 
-Jupyter is an Ipython notebook where you can run blocks of code and see results interactively.  All the code for this project is contained in a Jupyter notebook. To start Jupyter in your browser, use terminal to navigate to your project directory and then run the following command at the terminal prompt (be sure you've activated your Python 3 carnd-term1 environment as described in the [CarND Term1 Starter Kit](https://github.com/udacity/CarND-Term1-Starter-Kit/blob/master/README.md) installation instructions!):
+### 2) Edge detection
+With the image from step 1 the edges are detected using the canny edge detector.
 
-`> jupyter notebook`
+### 3) Reduce to region of interest
+The image with the edges is then reduced by a mask of the region of interest.
 
-A browser window will appear showing the contents of the current directory.  Click on the file called "P1.ipynb".  Another browser window will appear displaying the notebook.  Follow the instructions in the notebook to complete the project.  
+### 4) Hough transformation
+From the image with the edges detected a hough transformation is done which gives a list of lines (start point and end point)
 
-**Step 3:** Complete the project and submit both the Ipython notebook and the project writeup
+### 5) Split set of lines for left and right lane marking
 
-## How to write a README
-A well written README file can enhance your project and portfolio.  Develop your abilities to create professional README files by completing [this free course](https://www.udacity.com/course/writing-readmes--ud777).
+The list of lines is split in two lists for the left and the right lane side.
+To achieve this first the gradients of the lines are calculated. Only lines within a plausible range are removed as outliers (for example horizontal lines from the road marking).
+Then lines with positive gradients belong to the right lane and lines with negative gradients belong to the left lane.
 
+### 6) Average and extrapolate the lines
+The points from the lines are then fit with a least square estimator and extended to the region of interest.
+
+### 7) Draw the lines
+The lines of the left and right lane are then drawn to a image which is returned as result.
+
+## Results of the pipeline with intermediate steps
+
+In the following image six different test images are processed by the pipeline.
+1) Original image
+2) Segmentation by color range
+3) Edge detection
+4) Cut by region of interest
+5) Lines by hough transformation merged with original image
+5) Fit the two lines of the left and right lane marking
+6) Result of the pipeline, image merged with the two lines of the lane
+
+![image_detpipeline]
+
+An example with a bigger image:
+
+Original image:
+![Original image][image2]
+
+Processed by lane detection pipeline:
+![Processed image][image2_processed]
+
+## Potential shortcomings with the current pipeline
+The current pipeline only works reliable in special situations when the street is not too winding and when there are no crossings.
+
+The lane markings have be clearly visible. If the light conditions were bad the pipeline wouldn't work well.
+
+
+## Possible improvements to the pipeline
+
+To improve the pipeline the lanes should be modelled as higher order curves. Then winding roads could be approximated better and the trajectory control algorithm would have a better input.
+
+Since the pipeline should work on a video stream the history of the lane could be used for better lane detection.
+
+
+
+## Approches which were discarded
+* Using morphological transformations on the segmented image (closing) didn't improve the result.
+* Color normalization didn't improve the result. Maybe this helps when the light conditions have more variance.
+* First try with approximating the lane lines only with the highest and lowest detected point was too noisy.
+* Simple split of the lines from the hough transformation using the x coordinates didn't work on winding roads.
+
+## Results on the videos
+The results on the test videos are in the folder "test_videos_output"
+
+[solidWhiteRight.mp4](test_videos_output/solidWhiteRight.mp4')
+
+[solidYellowLeft.mp4](test_videos_output/solidYellowLeft.mp4')
+
+[challenge.mp4](test_videos_output/challenge.mp4')
