@@ -96,8 +96,8 @@ Since the pipeline should work on a video stream the history of the lane could b
 ## Results on the videos
 The results on the test videos are in the folder "test_videos_output"
 
-[solidWhiteRight.mp4](test_videos_output/solidWhiteRight.mp4')
+[solidWhiteRight.mp4](test_videos_output/solidWhiteRight.mp4)
 
-[solidYellowLeft.mp4](test_videos_output/solidYellowLeft.mp4')
+[solidYellowLeft.mp4](test_videos_output/solidYellowLeft.mp4)
 
-[challenge.mp4](test_videos_output/challenge.mp4')
+[challenge.mp4](test_videos_output/challenge.mp4)
